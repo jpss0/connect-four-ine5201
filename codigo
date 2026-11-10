@@ -1,0 +1,188 @@
+class Ligue4:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Ligue 4 - Tkinter (Círculos)")
+        self.root.resizable(False, False)
+
+        self.tabuleiro = [[0 for _ in range(COLUNAS)] for _ in range(LINHAS)]
+        self.jogador_atual = 1  # 1 ou 2
+        self.jogo_ativo = True
+
+        self.criar_widgets()
+
+    def criar_widgets(self):
+        # Título
+        lbl_titulo = tk.Label(self.root, text="LIGUE 4", font=("Arial", 18, "bold"), fg="#1E3A8A")
+        lbl_titulo.pack(pady=5)
+
+        # Indicador de Turno
+        self.lbl_turno = tk.Label(
+            self.root, 
+            text="Turno: Jogador 1 (Vermelho)", 
+            font=("Arial", 12, "bold"), 
+            fg=COR_JOGADOR_1
+        )
+        self.lbl_turno.pack(pady=5)
+
+        # Frame dos botões superiores para inserção de fichas
+        frame_botoes = tk.Frame(self.root)
+        frame_botoes.pack(pady=5)
+
+        self.botoes_coluna = []
+        for c in range(COLUNAS):
+            btn = tk.Button(
+                frame_botoes, 
+                text=f"▼ {c+1}", 
+                font=("Arial", 10, "bold"),
+                width=5,
+                command=lambda col=c: self.jogar(col)
+            )
+            btn.grid(row=0, column=c, padx=3)
+            self.botoes_coluna.append(btn)
+
+        # Canvas para desenhar o tabuleiro e os círculos
+        largura_canvas = COLUNAS * (RAIO_CIRCULO * 2 + ESPAÇAMENTO) + ESPAÇAMENTO
+        altura_canvas = LINHAS * (RAIO_CIRCULO * 2 + ESPAÇAMENTO) + ESPAÇAMENTO
+
+        self.canvas = tk.Canvas(
+            self.root, 
+            width=largura_canvas, 
+            height=altura_canvas, 
+            bg=COR_FUNDO_TAB, 
+            highlightthickness=0
+        )
+        self.canvas.pack(pady=5)
+
+        # Matriz para armazenar as referências dos círculos desenhados no Canvas
+        self.circulos = []
+        for r in range(LINHAS):
+            linha_circulos = []
+            for c in range(COLUNAS):
+                x1 = c * (RAIO_CIRCULO * 2 + ESPAÇAMENTO) + ESPAÇAMENTO + 3
+                y1 = r * (RAIO_CIRCULO * 2 + ESPAÇAMENTO) + ESPAÇAMENTO + 3
+                x2 = x1 + RAIO_CIRCULO * 2
+                y2 = y1 + RAIO_CIRCULO * 2
+
+                circulo = self.canvas.create_oval(x1, y1, x2, y2, fill=COR_VAZIO, outline="")
+                linha_circulos.append(circulo)
+            self.circulos.append(linha_circulos)
+
+        # Botão Reiniciar e Sair
+        frame_controles = tk.Frame(self.root)
+        frame_controles.pack(pady=10)
+
+        btn_reiniciar = tk.Button(
+            frame_controles, 
+            text="Reiniciar Jogo", 
+            font=("Arial", 11, "bold"), 
+            bg="#2B6CB0", 
+            fg="white",
+            command=self.reiniciar_jogo
+        )
+        btn_reiniciar.pack(side=tk.LEFT, padx=5)
+
+        btn_sair = tk.Button(
+            frame_controles, 
+            text="Sair", 
+            font=("Arial", 11), 
+            command=self.root.quit
+        )
+        btn_sair.pack(side=tk.LEFT, padx=5)
+
+    def jogar(self, coluna):
+        if not self.jogo_ativo:
+            return
+
+        # Encontra a linha livre na coluna escolhida (de baixo para cima)
+        linha_livre = None
+        for r in range(LINHAS - 1, -1, -1):
+            if self.tabuleiro[r][coluna] == 0:
+                linha_livre = r
+                break
+
+        if linha_livre is not None:
+            # Atualiza matriz lógica
+            self.tabuleiro[linha_livre][coluna] = self.jogador_atual
+
+            # Atualiza a cor do círculo no Canvas
+            cor = COR_JOGADOR_1 if self.jogador_atual == 1 else COR_JOGADOR_2
+            circulo_id = self.circulos[linha_livre][coluna]
+            self.canvas.itemconfig(circulo_id, fill=cor)
+
+            # Verifica vitória
+            if self.verificar_vitoria(self.jogador_atual):
+                nome_vencedor = "Jogador 1 (Vermelho)" if self.jogador_atual == 1 else "Jogador 2 (Amarelo)"
+                messagebox.showinfo("Fim de Jogo", f"🎉 Parabéns! {nome_vencedor} venceu!")
+                self.jogo_ativo = False
+                self.desativar_botoes()
+                return
+
+            # Verifica empate
+            if self.tabuleiro_cheio():
+                messagebox.showinfo("Fim de Jogo", "🤝 O jogo empatou! O tabuleiro está cheio.")
+                self.jogo_ativo = False
+                self.desativar_botoes()
+                return
+
+            # Alterna turno
+            self.jogador_atual = 2 if self.jogador_atual == 1 else 1
+            if self.jogador_atual == 1:
+                self.lbl_turno.config(text="Turno: Jogador 1 (Vermelho)", fg=COR_JOGADOR_1)
+            else:
+                self.lbl_turno.config(text="Turno: Jogador 2 (Amarelo)", fg=COR_JOGADOR_2)
+        else:
+            messagebox.showwarning("Coluna Cheia", "Esta coluna já está cheia! Escolha outra.")
+
+    def verificar_vitoria(self, jogador):
+        # Horizontal
+        for r in range(LINHAS):
+            for c in range(COLUNAS - 3):
+                if all(self.tabuleiro[r][c+i] == jogador for i in range(4)):
+                    return True
+
+        # Vertical
+        for r in range(LINHAS - 3):
+            for c in range(COLUNAS):
+                if all(self.tabuleiro[r+i][c] == jogador for i in range(4)):
+                    return True
+
+        # Diagonal Positiva (/)
+        for r in range(3, LINHAS):
+            for c in range(COLUNAS - 3):
+                if all(self.tabuleiro[r-i][c+i] == jogador for i in range(4)):
+                    return True
+
+        # Diagonal Negativa (\)
+        for r in range(LINHAS - 3):
+            for c in range(COLUNAS - 3):
+                if all(self.tabuleiro[r+i][c+i] == jogador for i in range(4)):
+                    return True
+
+        return False
+
+    def tabuleiro_cheio(self):
+        return all(self.tabuleiro[0][c] != 0 for c in range(COLUNAS))
+
+    def desativar_botoes(self):
+        for btn in self.botoes_coluna:
+            btn.config(state=tk.DISABLED)
+
+    def reiniciar_jogo(self):
+        self.tabuleiro = [[0 for _ in range(COLUNAS)] for _ in range(LINHAS)]
+        self.jogador_atual = 1
+        self.jogo_ativo = True
+
+        self.lbl_turno.config(text="Turno: Jogador 1 (Vermelho)", fg=COR_JOGADOR_1)
+
+        for btn in self.botoes_coluna:
+            btn.config(state=tk.NORMAL)
+
+        for r in range(LINHAS):
+            for c in range(COLUNAS):
+                circulo_id = self.circulos[r][c]
+                self.canvas.itemconfig(circulo_id, fill=COR_VAZIO)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = Ligue4(root)
+    root.mainloop()
