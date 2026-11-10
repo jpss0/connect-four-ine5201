@@ -1,0 +1,4 @@
+LINHAS = 6
+COLUNAS = 7
+RAIO_CIRCULO = 25  # Raio das fichas em pixels
+ESPAÇAMENTO = 6    # Espaço entre as fichas
